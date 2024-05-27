@@ -1,0 +1,43 @@
+# Generated gitignore for c project (specifically working with CLion but should cover all essentials)
+
+# CLion specific
+.idea/
+
+# Compiled binary files
+*.out
+*.o
+*.a
+*.so
+*.exe
+*.dll
+
+# Debug files
+*.dSYM/
+*.su
+*.swp
+*.log
+
+# Object files
+*.obj
+*.elf
+
+# Core dump files
+core
+
+# CLion build directories
+cmake-build-debug/
+cmake-build-release/
+cmake-build-*
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*~
