@@ -1,5 +1,8 @@
 #include "libDisk.h"
-
+#include "TinyFSErrors.h"
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <fcntl.h>
 int openDisk(char *filename, int nBytes) {
     /*
     This functions opens a regular UNIX file and designates the first
@@ -13,12 +16,39 @@ int openDisk(char *filename, int nBytes) {
     to maintain integrity of any file content beyond nBytes. The return value
     is negative on failure or a disk number on success.
     */
+
+    int file;
+    int adjusted_nBytes = (nBytes / BLOCKSIZE) * BLOCKSIZE;
+    char buff[adjusted_nBytes];
+    int i;
+    if (nBytes < BLOCKSIZE) {
+        return TFS_ERROR;
+    } else if ((nBytes == 0) && (access(filename, F_OK) != -1)) {
+	file = open(filename, O_RDWR);
+        if (file < 0){
+            return TFS_DISK_NOT_FOUND;
+        }
+	return file; 
+    } else if ((file = open(filename, O_RDWR | O_CREAT | O_TRUNC, S_IWGRP | S_IRGRP | S_IWUSR | S_IRUSR)) == -1) {
+        return TFS_ERROR;
+    }
+    // designating first "adjusted_nBytes" of space for the emulated disk
+    for (i = 0; i < adjusted_nBytes; i++) {
+        buff[i] = 0;    
+    }
+    if (write(file, buff, adjusted_nBytes) < 0) {
+        return TFS_ERROR;
+    }
+    return file;
+
 }
 
 int closeDisk(int disk) {
     /*
     self explanatory
     */
+    return close(disk);
+    
 }
 
 int readBlock(int disk, int bNum, void *block) {
@@ -34,6 +64,29 @@ int readBlock(int disk, int bNum, void *block) {
     opened) or any other failures. You must define your own error code
     system.
     */
+    
+    // NOTE: Assuming block is the local buffer?
+    if (sizeof(block) < BLOCKSIZE) {
+        return TFS_ERROR;
+    }
+
+    if (disk < 0) {
+        return TFS_FILE_NOT_OPEN;
+    }
+
+    if (bNum < 0) {
+        return TFS_INVALID_BLOCK;
+    }
+ 
+    if (lseek(disk, bNum * BLOCKSIZE, SEEK_SET) == -1) {
+        return TFS_INVALID_SEEK;
+    }
+
+    if (read(disk, block, BLOCKSIZE) != BLOCKSIZE) {
+        return TFS_ERROR;       
+    }
+    return TFS_SUCCESS;   
+
 }
 
 int writeBlock(int disk, int bNum, void *block) {
@@ -46,4 +99,26 @@ int writeBlock(int disk, int bNum, void *block) {
     is not available (i.e. hasn’t been opened) or any other failures. You
     must define your own error code system.
     */
+    
+    if (sizeof(block) < BLOCKSIZE) {
+        return TFS_ERROR;
+    }
+
+    if (disk < 0) {
+        return TFS_FILE_NOT_OPEN;
+    }
+
+    if (bNum < 0) {
+        return TFS_INVALID_BLOCK;
+    }
+
+    if (lseek(disk, bNum * BLOCKSIZE, SEEK_SET) == -1) {
+        return TFS_INVALID_SEEK;
+    }
+
+    if (write(disk, block, BLOCKSIZE) != BLOCKSIZE) {
+        return TFS_ERROR;
+    }
+    return TFS_SUCCESS;
+
 }
