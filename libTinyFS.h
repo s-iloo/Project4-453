@@ -5,6 +5,11 @@
 #define DEFAULT_DISK_SIZE 10240
 #define DEFAULT_DISK_NAME "tinyFSDisk"
 
+#include "libDisk.h"
+#include "tinyFSErrors.h"
+#include <string.h>
+#include <stdlib.h>
+
 typedef struct {
     char name[9];
     int size;
