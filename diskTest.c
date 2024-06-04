@@ -27,7 +27,6 @@ int main()
     {
         /* create a new buffer and fill it with $ */
         buffer = malloc(BLOCKSIZE * sizeof(char));
-
         diskName[4] = '0'+index;
         disks[index] = openDisk(diskName,0);
         
@@ -57,11 +56,12 @@ int main()
         else
         {
 	    printf("] Existing disk %s opened.\n",diskName);
+
 	    /* determine if the testBlocks contain the dollar Signal. 
  * Check every single byte */
             for (index2 = 0; index2 < NUM_TEST_BLOCKS; index2++)
             {
-		if (readBlock(disks[index],testBlocks[index2],buffer) < 0)
+		if ((retValue = readBlock(disks[index],testBlocks[index2],buffer)) < 0)
                 {
                     printf("] Failed to read block %i of disk %s. Exiting.\n",testBlocks[index2],diskName);
                     exit(0);

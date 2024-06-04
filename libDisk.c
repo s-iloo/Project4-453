@@ -69,10 +69,9 @@ int readBlock(int disk, int bNum, void *block) {
     
     // NOTE: Assuming block is the local buffer?
     // TODO condition always true? Above must be off
-    if (sizeof(*block) < BLOCKSIZE) {
+    if (malloc_usable_size(block) < BLOCKSIZE) {
         return TFS_ERROR;
     }
-
     if (disk < 0) {
         return TFS_FILE_NOT_OPEN;
     }
@@ -103,7 +102,7 @@ must define your own error code system.
 */
 int writeBlock(int disk, int bNum, void *block) {
     // TODO condition always true?
-    if (sizeof(*block) < BLOCKSIZE) {
+    if (malloc_usable_size(block) < BLOCKSIZE) {
         return TFS_ERROR;
     }
 
