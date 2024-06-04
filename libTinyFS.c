@@ -1,4 +1,6 @@
 #include "libTinyFS.h"
+#include "TinyFSErrors.h"
+#include <stdlib.h>
 
 static fileDescriptor *file_descriptors = NULL;
 static int num_file_descriptors = 0;
@@ -103,7 +105,7 @@ fileDescriptor tfs_openFile(char *name) {
     }
 
     // Create a new file descriptor
-    fileDescriptor *fd = realloc(file_descriptors, sizeof(fileDescriptor * (num_file_descriptors + 1));
+    fileDescriptor *fd = realloc(file_descriptors, sizeof(fileDescriptor) * (num_file_descriptors + 1));
     if (fd == NULL) {
         return TFS_ERROR;
     }
@@ -122,15 +124,83 @@ fileDescriptor tfs_openFile(char *name) {
     return num_file_descriptors - 1;
 }
 
-int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
-    /*
-    Writes buffer ‘buffer’ of size ‘size’, which represents an entire
-    file’s content, to the file system. Previous content (if any) will be
-    completely lost. Sets the file pointer to 0 (the start of file) when
-    done. Returns success/error codes.
-    */
+/*Helper function for writeFile to find free block in disk memory*/
+int find_free_block() {
+    char block[BLOCKSIZE];
+    for (int i = 1; i < DEFAULT_DISK_SIZE / BLOCKSIZE; i++) {
+        if (readBlock(mounted_disk, i, block) < 0) {
+            return TFS_ERROR;
+        }
+        if (block[0] == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
 
-    
+/*
+Writes buffer ‘buffer’ of size ‘size’, which represents an entire
+file’s content, to the file system. Previous content (if any) will be
+completely lost. Sets the file pointer to 0 (the start of file) when
+done. Returns success/error codes.
+*/
+int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
+
+    if (mounted_disk == -1) {
+        return TFS_ERROR;
+    }
+    if (FD.start_block < 0) {
+        return TFS_ERROR;
+    }
+
+    // Find number of blocks needed
+    int blocks_needed = (size + BLOCKSIZE - 1) / BLOCKSIZE;
+
+    // Allocate blocks for file
+    char block[BLOCKSIZE];
+    int cur_block = FD.start_block;
+    for (int i = 0; i < blocks_needed; i++){
+        if (cur_block == -1){
+            // find free block
+            cur_block = find_free_block();
+            if (cur_block == -1){
+                return TFS_ERROR; // no free blocks available
+            }
+
+            if (i == 0){
+                FD.start_block = cur_block;
+            } else{
+                // link previous block to new
+                char prev_block[BLOCKSIZE];
+                if (readBlock(mounted_disk, FD.current_block, prev_block) < 0){
+                    return TFS_ERROR;
+                }
+                // set pointer to the next block in the prev block's data
+                *((int *)(prev_block + BLOCKSIZE - sizeof(int))) = cur_block;
+                if (writeBlock(mounted_disk, FD.current_block, prev_block) < 0){
+                    return TFS_ERROR;
+                }
+            }
+            FD.current_block = cur_block;
+        }
+        // prepare block for writing
+        memset(block, 0, BLOCKSIZE);
+        int bytes_to_write = (size > BLOCKSIZE) ? BLOCKSIZE: size;
+        memcpy(block, buffer, bytes_to_write);
+
+        if (writeBlock(mounted_disk, cur_block, block) > 0){
+            return TFS_ERROR;
+        }
+
+        buffer += bytes_to_write;
+        size -= bytes_to_write;
+    }
+
+    // update file descriptor
+    FD.size = size;
+    FD.current_offset = 0;
+
+    return TFS_SUCCESS;
 
 }
 

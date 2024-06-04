@@ -6,7 +6,7 @@
 #define DEFAULT_DISK_NAME "tinyFSDisk"
 
 #include "libDisk.h"
-#include "tinyFSErrors.h"
+//#include "tinyFSErrors.h"
 #include <string.h>
 #include <stdlib.h>
 
