@@ -1,9 +1,6 @@
 #include "libTinyFS.h"
-#include "libDisk.h"
-#include "tinyFSErrors.h"
-#include <string.h>
 
-static FileDescriptor *file_descriptors = NULL;
+static fileDescriptor *file_descriptors = NULL;
 static int num_file_descriptors = 0;
 static int mounted_disk = -1;
 
@@ -106,14 +103,14 @@ fileDescriptor tfs_openFile(char *name) {
     }
 
     // Create a new file descriptor
-    FileDescriptor *fd = realloc(file_descriptors, sizeof(FileDescriptor) * (num_file_descriptors + 1));
+    fileDescriptor *fd = realloc(file_descriptors, sizeof(fileDescriptor * (num_file_descriptors + 1));
     if (fd == NULL) {
         return TFS_ERROR;
     }
     file_descriptors = fd;
 
     // init the file descriptor
-    FileDescriptor *new_fd = &file_descriptors[num_file_descriptors];
+    fileDescriptor *new_fd = &file_descriptors[num_file_descriptors];
     strncpy(new_fd->name, name, 8);
     new_fd->name[8] = '\0';
     new_fd->size = 0;
