@@ -132,6 +132,9 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     completely lost. Sets the file pointer to 0 (the start of file) when
     done. Returns success/error codes.
     */
+
+    
+
 }
 
 int tfs_deleteFile(fileDescriptor FD) {

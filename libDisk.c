@@ -21,15 +21,20 @@ int openDisk(char *filename, int nBytes) {
     int adjusted_nBytes = (nBytes / BLOCKSIZE) * BLOCKSIZE;
     char buff[adjusted_nBytes];
     int i;
-    if (nBytes < BLOCKSIZE) {
-        return TFS_ERROR;
-    // TODO nBytes == 0 always false?
-    } else if ((nBytes == 0) && (access(filename, F_OK) != -1)) {
+
+    /*int accesss = access(filename, F_OK);
+
+    printf("doing access check: %d", accesss);
+    printf("checking filename: %s", filename);*/
+
+    if ((nBytes == 0) && (access(filename, F_OK) != -1)) {
 	file = open(filename, O_RDWR);
         if (file < 0){
             return TFS_DISK_NOT_FOUND;
         }
 	return file; 
+    } else if (nBytes < BLOCKSIZE) {
+        return TFS_ERROR;
     } else if ((file = open(filename, O_RDWR | O_CREAT | O_TRUNC, S_IWGRP | S_IRGRP | S_IWUSR | S_IRUSR)) == -1) {
         return TFS_ERROR;
     }
@@ -64,7 +69,7 @@ int readBlock(int disk, int bNum, void *block) {
     
     // NOTE: Assuming block is the local buffer?
     // TODO condition always true? Above must be off
-    if (sizeof(block) < BLOCKSIZE) {
+    if (sizeof(*block) < BLOCKSIZE) {
         return TFS_ERROR;
     }
 
@@ -98,7 +103,7 @@ must define your own error code system.
 */
 int writeBlock(int disk, int bNum, void *block) {
     // TODO condition always true?
-    if (sizeof(block) < BLOCKSIZE) {
+    if (sizeof(*block) < BLOCKSIZE) {
         return TFS_ERROR;
     }
 
@@ -119,3 +124,4 @@ int writeBlock(int disk, int bNum, void *block) {
     }
     return TFS_SUCCESS;
 }
+
