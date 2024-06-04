@@ -5,7 +5,13 @@
 #define DEFAULT_DISK_SIZE 10240
 #define DEFAULT_DISK_NAME "tinyFSDisk"
 
-typedef int fileDescriptor;
+typedef struct {
+    char name[9];
+    int size;
+    int start_block;
+    int current_block;
+    int current_offset;
+} fileDescriptor;
 
 /* Standard function declarations */
 
