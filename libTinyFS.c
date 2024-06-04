@@ -102,7 +102,7 @@ this entry while the filesystem is mounted
 */
 fileDescriptor tfs_openFile(char *name) {
     if (mounted_disk == -1) {
-        return TFS_ERROR; // No file system is mounted
+        return TFS_ERROR;
     }
 
     // Create a new file descriptor
@@ -112,7 +112,7 @@ fileDescriptor tfs_openFile(char *name) {
     }
     file_descriptors = fd;
 
-    // Initialize the file descriptor
+    // init the file descriptor
     FileDescriptor *new_fd = &file_descriptors[num_file_descriptors];
     strncpy(new_fd->name, name, 8);
     new_fd->name[8] = '\0';
@@ -122,7 +122,7 @@ fileDescriptor tfs_openFile(char *name) {
     new_fd->current_offset = 0;
 
     num_file_descriptors++;
-    return num_file_descriptors - 1; // Return the file descriptor index
+    return num_file_descriptors - 1;
 }
 
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
