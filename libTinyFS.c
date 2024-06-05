@@ -22,21 +22,22 @@ int tfs_mkfs(char *filename, int nBytes) {
     }
 
     char block[BLOCKSIZE] = {0};
-    // mark all blocks as free
-    block[0] = 4;
-    // magic num
-    block[1] = 0x44;
-
-    for (int i = 0; i < nBytes / BLOCKSIZE; i++) {
+    // mark all blocks as free and link them together with byte 2
+    for (int i = 1; i < nBytes / BLOCKSIZE; i++) {
+        block[0] = 4; // Block type = free
+        block[1] = 0x44; // Magic number
+        block[2] = (i == nBytes / BLOCKSIZE - 1) ? 0 : i + 1; // Link to the next free block or 0 if the last block
         if (writeBlock(disk, i, block) < 0) {
             return TFS_ERROR;
         }
     }
 
     // init + write  superblock
+    memset(block, 0, BLOCKSIZE);
     block[0] = 1; // Block type = superblock
     // NOTE: don't think we needa do this twice since we alredy set magic number above
     block[1] = 0x44; // Magic number
+    block[2] = 1; //Pointer to first free block
 
     // TODO likely more superblock content
     if (writeBlock(disk, 0, block) < 0) {
@@ -116,13 +117,14 @@ this entry while the filesystem is mounted
 // etc.
 fileDescriptor tfs_openFile(char *name) {
     if (mounted_disk == -1) {
-        return TFS_ERROR;
+        // can we use raise so we don't have a type mismatch?
+        raise(TFS_ERROR);
     }
 
     // Create a new file descriptor
     fileDescriptor *fd = realloc(file_descriptors, sizeof(fileDescriptor) * (num_file_descriptors + 1));
     if (fd == NULL) {
-        return TFS_ERROR;
+        raise(TFS_ERROR);
     }
     file_descriptors = fd;
 
@@ -141,20 +143,28 @@ fileDescriptor tfs_openFile(char *name) {
 
 /*Helper function for writeFile to find free block in disk memory*/
 int find_free_block() {
-    char block[BLOCKSIZE];
-    for (int i = 1; i < DEFAULT_DISK_SIZE / BLOCKSIZE; i++) {
-        if (readBlock(mounted_disk, i, block) < 0) {
-            return TFS_ERROR;
-        }
-        // NOTE: not sure if this is valid since what if user wants to write 0 to the block?
-        // block could contain 0 and not be free then.
-        // perhaps we need to utilize the byte 2 to form a linked list of free blocks?
-        // see page 4 of the specs under "free block" section
-        if (block[0] == 0) {
-            return i;
-        }
+    char super_block[BLOCKSIZE];
+    if (readBlock(mounted_disk, 0, super_block) < 0) {
+        return TFS_ERROR;
     }
-    return -1;
+
+    int free_block = super_block[2];
+    if (free_block == 0) {
+        return -1; // No free blocks available
+    }
+
+    char free_block_data[BLOCKSIZE];
+    if (readBlock(mounted_disk, free_block, free_block_data) < 0) {
+        return TFS_ERROR;
+    }
+
+    // Update superblock to point to the next free block
+    super_block[2] = free_block_data[2];
+    if (writeBlock(mounted_disk, 0, super_block) < 0) {
+        return TFS_ERROR;
+    }
+
+    return free_block;
 }
 
 /*
@@ -164,9 +174,14 @@ completely lost. Sets the file pointer to 0 (the start of file) when
 done. Returns success/error codes.
 */
 
-// NOTE: make sure that the first byte of the block is 3 (file extent type)
-// AND that byte 1 is the magic number (i think you're overwriting the magic number 
-// right now)
+/*NOTE: I updated mkfs, find_free_block, and writeFile to attempt to 
+have mkfs initialize the superblock with a pointer (in byte 2) to the
+first free block (also mark all blocks as free and link them together
+in free block list). Then, the find_free_block reads the superblock, and
+then updates it to point to next free block. WriteFile links blocks 
+using the free block lists and sets block type & magic number for each \
+block*/
+
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
 
     if (mounted_disk == -1) {
@@ -176,8 +191,8 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
         return TFS_ERROR;
     }
 
-    // Find number of blocks needed
-    int blocks_needed = (size + BLOCKSIZE - 1) / BLOCKSIZE;
+    // Find number of blocks needed (give room for first 4 data bytes)
+    int blocks_needed = (size + BLOCKSIZE - 5) / (BLOCKSIZE - 4);
 
     // Allocate blocks for file
     char block[BLOCKSIZE];
@@ -198,8 +213,8 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
                 if (readBlock(mounted_disk, FD.current_block, prev_block) < 0){
                     return TFS_ERROR;
                 }
-                // set pointer to the next block in the prev block's data
-                *((int *)(prev_block + BLOCKSIZE - sizeof(int))) = cur_block;
+                
+                prev_block[2] = (char)cur_block; // link to next block
                 if (writeBlock(mounted_disk, FD.current_block, prev_block) < 0){
                     return TFS_ERROR;
                 }
@@ -208,8 +223,11 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
         }
         // prepare block for writing
         memset(block, 0, BLOCKSIZE);
-        int bytes_to_write = (size > BLOCKSIZE) ? BLOCKSIZE: size;
-        memcpy(block, buffer, bytes_to_write);
+        block[0] = 3; //file extent
+        block[1] = 0x44;
+
+        int bytes_to_write = (size > (BLOCKSIZE - 4)) ? (BLOCKSIZE - 4): size;
+        memcpy(block + 4, buffer, bytes_to_write);
 
         if (writeBlock(mounted_disk, cur_block, block) > 0){
             return TFS_ERROR;
@@ -217,6 +235,9 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
 
         buffer += bytes_to_write;
         size -= bytes_to_write;
+
+        // reset for next iteration
+        cur_block = -1;
     }
 
     // update file descriptor
