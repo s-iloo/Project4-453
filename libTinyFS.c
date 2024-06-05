@@ -22,6 +22,11 @@ int tfs_mkfs(char *filename, int nBytes) {
     }
 
     char block[BLOCKSIZE] = {0};
+    // mark all blocks as free
+    block[0] = 4;
+    // magic num
+    block[1] = 0x44;
+
     for (int i = 0; i < nBytes / BLOCKSIZE; i++) {
         if (writeBlock(disk, i, block) < 0) {
             return TFS_ERROR;
@@ -30,7 +35,9 @@ int tfs_mkfs(char *filename, int nBytes) {
 
     // init + write  superblock
     block[0] = 1; // Block type = superblock
+    // NOTE: don't think we needa do this twice since we alredy set magic number above
     block[1] = 0x44; // Magic number
+
     // TODO likely more superblock content
     if (writeBlock(disk, 0, block) < 0) {
         return TFS_ERROR;
@@ -99,6 +106,14 @@ mounted file system. Creates a dynamic resource table entry for the file,
 and returns a file descriptor (integer) that can be used to reference
 this entry while the filesystem is mounted
 */
+
+// NOTE: i think we also need to see if the file already exists on disk 
+// then i think if the file doesn't exist we need to find the free blocks
+// by reading each block sequentially and checking if the byte at 0 is 4 (free)
+// which corresponds to a free block 
+// then we probably need to initialize the block on disk and set the various bytes
+// to signify block type is of inode type (i think), creation time and access time (maybe)
+// etc.
 fileDescriptor tfs_openFile(char *name) {
     if (mounted_disk == -1) {
         return TFS_ERROR;
