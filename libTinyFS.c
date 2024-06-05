@@ -131,6 +131,10 @@ int find_free_block() {
         if (readBlock(mounted_disk, i, block) < 0) {
             return TFS_ERROR;
         }
+        // NOTE: not sure if this is valid since what if user wants to write 0 to the block?
+        // block could contain 0 and not be free then.
+        // perhaps we need to utilize the byte 2 to form a linked list of free blocks?
+        // see page 4 of the specs under "free block" section
         if (block[0] == 0) {
             return i;
         }
@@ -208,6 +212,23 @@ int tfs_deleteFile(fileDescriptor FD) {
     /*
     deletes a file and marks its blocks as free on disk.
     */
+    int start = FD.start_block;
+    int end = FD.start_block + FD.size; 
+
+    if(mounted_disk == -1) {
+        return TFS_ERROR;
+    } else {
+        disk = openDisk(mounted_disk, 0);
+    }
+
+    // find file in disk and mark blocks as free
+    
+    // handle permissions?
+    
+    // adjust pointers so that prev points to next next 
+    
+    // free memory
+
 }
 
 int tfs_readByte(fileDescriptor FD, char *buffer) {
