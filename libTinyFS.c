@@ -163,6 +163,10 @@ file’s content, to the file system. Previous content (if any) will be
 completely lost. Sets the file pointer to 0 (the start of file) when
 done. Returns success/error codes.
 */
+
+// NOTE: make sure that the first byte of the block is 3 (file extent type)
+// AND that byte 1 is the magic number (i think you're overwriting the magic number 
+// right now)
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
 
     if (mounted_disk == -1) {
