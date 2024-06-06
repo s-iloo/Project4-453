@@ -9,7 +9,8 @@
 #include "libDisk.h"
 #include "libTinyFS.h"
 #include "TinyFS_errno.h"
-
+#include "libTinyFS.c"
+#include "libDisk.c"
 /* simple helper function to fill Buffer with as many inPhrase strings as possible before reaching size */
 int fillBufferWithPhrase(char *inPhrase, char *Buffer, int size) {
   int index = 0, i;

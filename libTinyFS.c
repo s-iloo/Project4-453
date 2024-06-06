@@ -213,7 +213,6 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     if (FD < 0 || FD >= num_fd) {
         return TFS_FILE_NOT_OPEN;
     }
-
     if (file_md[FD].read_only) {
         return TFS_FILE_READ_ONLY;
     }
@@ -221,6 +220,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     int total_blocks = (size + BLOCKSIZE - 5) / (BLOCKSIZE - 4);
     int remaining_size = size;
     char *current_buffer = buffer;
+
     int previous_block = -1;
 
     file_md[FD].size = size;
@@ -338,7 +338,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
         return TFS_FILE_NOT_OPEN;
     }
 
-    if (file_md[FD].curr_offset >= file_md[FD].size) {
+    if (file_md[FD].curr_offset > file_md[FD].size) {
         return TFS_EOF;
     }
 
@@ -484,6 +484,49 @@ int tfs_writeByte(fileDescriptor FD, int offset, unsigned int data) {
     /*
     a function that can write one byte to an exact position inside the file.
     */
+    int i; 
+    char block[BLOCKSIZE];
+    if (mounted_disk == -1) {
+        return TFS_DISK_NOT_OPEN;
+    }
+
+    if (FD < 0 || FD >= num_fd) {
+        return TFS_FILE_NOT_OPEN;
+    }
+    printf("file curr offset: %d\n", file_md[FD].curr_offset);
+    printf("file size: %d\n", file_md[FD].size);
+    /*if (file_md[FD].curr_offset >= file_md[FD].size) {
+        printf("right here!\n");
+        return TFS_EOF;
+    }*/
+    // get the start block of the file
+    int block_num = file_md[FD].start_block;
+    printf("block_num is: %d\n", block_num);
+    readBlock(mounted_disk, block_num, block); 
+    for (i = file_md[FD].start_block + 1; i < offset / (BLOCKSIZE - 4); i++) {
+        //block[BLOCKSIZE] = {0};
+        printf("searching for the right block!\n");
+        if (readBlock(mounted_disk, block_num, block) < 0) {
+            return TFS_READ_ERROR;
+        }
+        block_num = *((int*)(block + 2));
+    }
+
+    // at this point I should have the entire block and I just need to modify
+    // it to write the data at the exact offset
+    printf("data block before write: %s\n", block + 4);
+
+    printf("adding data to block: %c\n", (char) data);
+    printf("offset mod blocksize is %d\n", (offset % BLOCKSIZE)); 
+    block[offset % BLOCKSIZE + 4] = (char) data;
+    //char data_byte = data;
+    //memcpy(block + offset, data_byte, 1);
+    printf("data block after write: %s\n", block + 4);
+
+    printf("writing block back to disk\n");
+    writeBlock(mounted_disk, block_num, block); 
+    return TFS_SUCCESS;    
+
 }
 
 int tfs_readFileInfo(fileDescriptor FD) {
