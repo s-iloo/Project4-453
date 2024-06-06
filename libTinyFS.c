@@ -15,7 +15,7 @@ inodes, etc. Must return a specified success/error code.
 int tfs_mkfs(char *filename, int nBytes) {
     int disk = openDisk(filename, nBytes);
     if (disk < 0) {
-        return TFS_ERROR;
+        return TFS_DISK_FAILURE;
     }
 
     int num_blocks = nBytes / BLOCKSIZE;
@@ -27,7 +27,7 @@ int tfs_mkfs(char *filename, int nBytes) {
     block[2] = 1; // Pointer to first free block
 
     if (writeBlock(disk, 0, block) < 0) {
-        return TFS_ERROR;
+        return TFS_WRITE_ERROR;
     }
 
     // Initialize free blocks
@@ -38,7 +38,7 @@ int tfs_mkfs(char *filename, int nBytes) {
         block[2] = (i == num_blocks - 1) ? 0 : i + 1; // Link to the next free block or 0 if the last block
 
         if (writeBlock(disk, i, block) < 0) {
-            return TFS_ERROR;
+            return TFS_WRITE_ERROR;
         }
         printf("init free block %d points to: %d\n", i, block[2]);
     }
@@ -56,22 +56,22 @@ mounted file system. Must return a specified success/error code.
 */
 int tfs_mount(char *diskname) {
     if (mounted_disk != -1) {
-        return TFS_ERROR;
+        return TFS_DISK_ALREADY_MOUNTED;
     }
 
     int disk = openDisk(diskname, 0);
     if (disk < 0) {
-        return TFS_ERROR;
+        return TFS_DISK_FAILURE;
     }
 
     char block[BLOCKSIZE];
     if (readBlock(disk, 0, block) < 0) {
-        return TFS_ERROR;
+        return TFS_READ_ERROR;
     }
 
     if (block[0] != 1 || block[1] != 0x44) {
         closeDisk(disk);
-        return TFS_ERROR;
+        return TFS_INVALID_FILESYSTEM;
     }
 
     mounted_disk = disk;
@@ -83,7 +83,7 @@ unmounts the currently mounted file system. Must return a specified success/erro
 */
 int tfs_unmount(void) {
     if (mounted_disk == -1) {
-        return TFS_ERROR;
+        return TFS_DISK_NOT_OPEN;
     }
 
     closeDisk(mounted_disk);
@@ -97,17 +97,9 @@ mounted file system. Creates a dynamic resource table entry for the file,
 and returns a file descriptor (integer) that can be used to reference
 this entry while the filesystem is mounted
 */
-
-// NOTE: i think we also need to see if the file already exists on disk 
-// then i think if the file doesn't exist we need to find the free blocks
-// by reading each block sequentially and checking if the byte at 0 is 4 (free)
-// which corresponds to a free block 
-// then we probably need to initialize the block on disk and set the various bytes
-// to signify block type is of inode type (i think), creation time and access time (maybe)
-// etc.
 fileDescriptor tfs_openFile(char *name) {
     if (mounted_disk == -1) {
-        return TFS_ERROR;
+        return TFS_DISK_NOT_OPEN;
     }
 
     for (int i = 0; i < num_fd; i++) {
@@ -118,7 +110,7 @@ fileDescriptor tfs_openFile(char *name) {
 
     fileMetadata *meta = realloc(file_md, sizeof(fileMetadata) * (num_fd + 1));
     if (meta == NULL) {
-        return TFS_ERROR;
+        return TFS_MEMORY_ERROR;
     }
     file_md = meta;
 
@@ -140,11 +132,11 @@ Closes the file, de-allocates all system resources, and removes table entry.
 */
 int tfs_closeFile(fileDescriptor FD) {
     if (mounted_disk == -1) {
-        return TFS_ERROR;
+        return TFS_DISK_NOT_OPEN;
     }
 
     if (FD < 0 || FD >= num_fd) {
-        return TFS_ERROR;
+        return TFS_FILE_NOT_OPEN;
     }
 
     // Shift all file descriptors after FD one position left to remove FD
@@ -170,25 +162,25 @@ int tfs_closeFile(fileDescriptor FD) {
 int find_free_block() {
     char super_block[BLOCKSIZE];
     if (readBlock(mounted_disk, 0, super_block) < 0) {
-        return TFS_ERROR;
+        return TFS_READ_ERROR;
     }
 
     int free_block = super_block[2];
     if (free_block == 0) {
-        return -1; // No free blocks available
+        return TFS_DISK_FULL; // No free blocks available
     }
 
     printf("free block is %d\n", free_block);
 
     char free_block_data[BLOCKSIZE];
     if (readBlock(mounted_disk, free_block, free_block_data) < 0) {
-        return TFS_ERROR;
+        return TFS_READ_ERROR;
     }
 
     // Update superblock to point to the next free block
     super_block[2] = free_block_data[2];
     if (writeBlock(mounted_disk, 0, super_block) < 0) {
-        return TFS_ERROR;
+        return TFS_WRITE_ERROR;
     }
 
     printf("updated superblock to block %d\n", super_block[2]);
@@ -197,7 +189,7 @@ int find_free_block() {
     free_block_data[0] = 3; // Data block type
     free_block_data[2] = 0; // Clear next free block pointer
     if (writeBlock(mounted_disk, free_block, free_block_data) < 0) {
-        return TFS_ERROR;
+        return TFS_WRITE_ERROR;
     }
 
     return free_block;
@@ -212,15 +204,15 @@ done. Returns success/error codes.
 */
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     if (mounted_disk == -1) {
-        return TFS_ERROR;
+        return TFS_DISK_NOT_OPEN;
     }
 
     if (FD < 0 || FD >= num_fd) {
-        return TFS_ERROR;
+        return TFS_FILE_NOT_OPEN;
     }
 
     if (file_md[FD].read_only) {
-        return TFS_ERROR;
+        return TFS_FILE_READ_ONLY;
     }
 
     int total_blocks = (size + BLOCKSIZE - 5) / (BLOCKSIZE - 4);
@@ -231,7 +223,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     file_md[FD].size = size;
     file_md[FD].start_block = find_free_block();
     if (file_md[FD].start_block == -1) {
-        return TFS_ERROR; // No free blocks available
+        return TFS_DISK_FULL; // No free blocks available
     }
 
     file_md[FD].curr_block = file_md[FD].start_block;
@@ -241,18 +233,18 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
         if (cur_block == -1) {
             cur_block = find_free_block();
             if (cur_block == -1) {
-                return TFS_ERROR; // No free blocks available
+                return TFS_DISK_FULL; // No free blocks available
             }
 
             // Link the previous block to the new block
             if (previous_block != -1) {
                 char prev_block_data[BLOCKSIZE];
                 if (readBlock(mounted_disk, previous_block, prev_block_data) < 0) {
-                    return TFS_ERROR;
+                    return TFS_READ_ERROR;
                 }
                 *((int *)(prev_block_data + 2)) = cur_block;
                 if (writeBlock(mounted_disk, previous_block, prev_block_data) < 0) {
-                    return TFS_ERROR;
+                    return TFS_WRITE_ERROR;
                 }
                 printf("linked block %d to new block %d\n", previous_block, cur_block);
             }
@@ -266,7 +258,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
         memcpy(block + 4, current_buffer, bytes_to_write);
 
         if (writeBlock(mounted_disk, cur_block, block) < 0) {
-            return TFS_ERROR;
+            return TFS_WRITE_ERROR;
         }
         printf("wrote %d bytes to block no. %d\n", bytes_to_write, cur_block);
 
@@ -289,11 +281,11 @@ deletes a file and marks its blocks as free on disk.
 */
 int tfs_deleteFile(fileDescriptor FD) {
     if (mounted_disk == -1) {
-        return TFS_ERROR;
+        return TFS_DISK_NOT_OPEN;
     }
 
     if (FD < 0 || FD >= num_fd) {
-        return TFS_ERROR;
+        return TFS_FILE_NOT_OPEN;
     }
 
     int curr_block = file_md[FD].start_block;
@@ -302,7 +294,7 @@ int tfs_deleteFile(fileDescriptor FD) {
         char block[BLOCKSIZE];
 
         if (readBlock(mounted_disk, curr_block, block) < 0) {
-            return TFS_ERROR;
+            return TFS_READ_ERROR;
         }
 
         int next_block = *((int*)(block + 2));
@@ -312,7 +304,7 @@ int tfs_deleteFile(fileDescriptor FD) {
         block[1] = 0x44; // Magic number
 
         if (writeBlock(mounted_disk, curr_block, block) < 0) {
-            return TFS_ERROR;
+            return TFS_WRITE_ERROR;
         }
 
         curr_block = next_block;
@@ -334,15 +326,15 @@ tfs_readByte() should return an error and not increment the file pointer
 */
 int tfs_readByte(fileDescriptor FD, char *buffer) {
     if (mounted_disk == -1) {
-        return TFS_ERROR;
+        return TFS_DISK_NOT_OPEN;
     }
 
     if (FD < 0 || FD >= num_fd) {
-        return TFS_ERROR;
+        return TFS_FILE_NOT_OPEN;
     }
 
     if (file_md[FD].curr_offset >= file_md[FD].size) {
-        return TFS_ERROR;
+        return TFS_EOF;
     }
 
     int block_num = file_md[FD].curr_block;
@@ -350,7 +342,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 
     char block[BLOCKSIZE];
     if (readBlock(mounted_disk, block_num, block) < 0) {
-        return TFS_ERROR;
+        return TFS_READ_ERROR;
     }
 
     *buffer = block[offset];
@@ -370,15 +362,15 @@ success/error codes.
 */
 int tfs_seek(fileDescriptor FD, int offset) {
     if (mounted_disk == -1) {
-        return TFS_ERROR;
+        return TFS_DISK_NOT_OPEN;
     }
 
     if (FD < 0 || FD >= num_fd) {
-        return TFS_ERROR;
+        return TFS_FILE_NOT_OPEN;
     }
 
     if (offset < 0 || offset >= file_md[FD].size) {
-        return TFS_ERROR;
+        return TFS_INVALID_SEEK;
     }
 
     file_md[FD].curr_offset = offset;
@@ -387,7 +379,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
     for (int i = 0; i < offset / (BLOCKSIZE - 4); i++) {
         char block[BLOCKSIZE];
         if (readBlock(mounted_disk, block_num, block) < 0) {
-            return TFS_ERROR;
+            return TFS_READ_ERROR;
         }
         block_num = *((int*)(block + 2));
     }
@@ -399,17 +391,17 @@ int tfs_seek(fileDescriptor FD, int offset) {
 /* EXTRA FUNCTIONS. CHECK HEADER FILE FOR MORE INFO ON HOW WE SHOULD APPROACH THESE */
 
 int tfs_checkConsistency() {
-     /*
-     Perform checks for file system consistency.
+    /*
+    Perform checks for file system consistency.
 
-     General ideas for consistency checks:
-     - Read the superblock and extract information about free blocks and inode pointers
-     - Traverse the list of free blocks and ensure they are marked as free
-     - traverse the list of inodes and ensure that allocated blocks are not marked as free
-     - Check for block corruption (for example: invalid magic numbers, incorrect block types).
+    General ideas for consistency checks:
+    - Read the superblock and extract information about free blocks and inode pointers
+    - Traverse the list of free blocks and ensure they are marked as free
+    - traverse the list of inodes and ensure that allocated blocks are not marked as free
+    - Check for block corruption (for example: invalid magic numbers, incorrect block types).
 
-     Return TFS_SUCCESS if all checks pass, otherwise return an error code
-     */
+    Return TFS_SUCCESS if all checks pass, otherwise return an error code
+    */
 }
 
 int tfs_rename(fileDescriptor FD, char* newName) {
@@ -423,7 +415,7 @@ int tfs_rename(fileDescriptor FD, char* newName) {
 */
 int tfs_readdir() {
     if (mounted_disk == -1) {
-        return TFS_ERROR;
+        return TFS_DISK_NOT_OPEN;
     }
 
     printf("Files in TinyFS:\n");
@@ -445,7 +437,7 @@ int tfs_makeRO(char *name) {
             return TFS_SUCCESS;
         }
     }
-    return TFS_ERROR;
+    return TFS_FILE_NOT_FOUND;
 }
 
 
@@ -459,7 +451,7 @@ int tfs_makeRW(char *name) {
             return TFS_SUCCESS;
         }
     }
-    return TFS_ERROR;
+    return TFS_FILE_NOT_FOUND;
 }
 
 int tfs_writeByte(fileDescriptor FD, int offset, unsigned int data) {
