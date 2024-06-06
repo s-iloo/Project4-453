@@ -97,17 +97,18 @@ int main() {
     }
     printf("\n");
 
-    printf("Closing file \"sillyfile\"...\n");
+    printf("Renaming file \"sillyfile\" to \"bruhfile\"...\n");
+    if (tfs_rename(aFD, "bruhfile") != TFS_SUCCESS) {
+        printf("Failed to rename \"iamfile\"\n");
+        return -1;
+    }
+
+    printf("Closing file \"bruhfile\"...\n");
     if (tfs_closeFile(bFD) != TFS_SUCCESS) {
         printf("Failed to close file \"sillyfile\"\n");
         return -1;
     }
 
-    printf("Renaming file \"iamfile\" to \"bruhfile\"...\n");
-    if (tfs_rename(aFD, "bruhfile") != TFS_SUCCESS) {
-        printf("Failed to rename \"iamfile\"\n");
-        return -1;
-    }
 
     printf("Listing files in the file system...\n");
     if (tfs_readdir() != TFS_SUCCESS) {

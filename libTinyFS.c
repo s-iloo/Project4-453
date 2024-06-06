@@ -410,11 +410,28 @@ int tfs_checkConsistency() {
     */
 }
 
+ /*Renames a file. New name should be passed in. File has to be open*/
 int tfs_rename(fileDescriptor FD, char* newName) {
-    /*
-    Renames a file. New name should be passed in. File has to be open
-    */
+    if (mounted_disk == -1) {
+        return TFS_DISK_NOT_OPEN;
+    }
+
+    if (FD < 0 || FD >= num_fd) {
+        return TFS_FILE_NOT_OPEN;
+    }
+    int i;
+    for (i = 0; i < num_fd; i++) {
+        if (strcmp(file_md[i].name, newName) == 0) {
+            return TFS_FILE_ALREADY_EXISTS;
+        }
+    }
+
+    strncpy(file_md[FD].name, newName, 8);
+    file_md[FD].name[8] = '\0'; // add null termination
+
+    return TFS_SUCCESS;
 }
+
 
 /*
  Lists all the files and directories on the disk, print the list to stdout
