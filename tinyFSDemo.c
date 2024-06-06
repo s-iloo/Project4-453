@@ -31,12 +31,14 @@ int main() {
     iamfileContent = (char *) malloc(iamfileSize * sizeof(char));
     sillyfileContent = (char *) malloc(sillyfileSize * sizeof(char));
 
-    for (int i = 0; i < iamfileSize; i++) {
+    int i;
+    for (i = 0; i < iamfileSize; i++) {
         iamfileContent[i] = phrase1[i % strlen(phrase1)];
     }
     iamfileContent[iamfileSize - 1] = '\0';
 
-    for (int i = 0; i < sillyfileSize; i++) {
+    
+    for (i = 0; i < sillyfileSize; i++) {
         sillyfileContent[i] = phrase2[i % strlen(phrase2)];
     }
     sillyfileContent[sillyfileSize - 1] = '\0';

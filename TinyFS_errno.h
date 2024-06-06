@@ -18,5 +18,9 @@
 #define TFS_WRITE_ERROR -11
 #define TFS_READ_ERROR -12
 #define TFS_DISK_FAILURE -13
+#define TFS_EOF -14
+#define TFS_DISK_ALREADY_MOUNTED -15
+#define TFS_INVALID_FILESYSTEM -16
+#define TFS_MEMORY_ERROR -17
 
 #endif

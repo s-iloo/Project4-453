@@ -31,7 +31,8 @@ int tfs_mkfs(char *filename, int nBytes) {
     }
 
     // Initialize free blocks
-    for (int i = 1; i < num_blocks; i++) {
+    int i;
+    for (i = 1; i < num_blocks; i++) {
         memset(block, 0, BLOCKSIZE);
         block[0] = 4; // Block type = free
         block[1] = 0x44; // Magic number
@@ -102,7 +103,8 @@ fileDescriptor tfs_openFile(char *name) {
         return TFS_DISK_NOT_OPEN;
     }
 
-    for (int i = 0; i < num_fd; i++) {
+    int i;
+    for (i = 0; i < num_fd; i++) {
         if (strcmp(file_md[i].name, name) == 0) {
             return i; // File already exists, return its descriptor
         }
@@ -140,7 +142,8 @@ int tfs_closeFile(fileDescriptor FD) {
     }
 
     // Shift all file descriptors after FD one position left to remove FD
-    for (int i = FD; i < num_fd - 1; i++) {
+    int i;
+    for (i = FD; i < num_fd - 1; i++) {
         file_md[i] = file_md[i + 1];
     }
 
@@ -229,7 +232,8 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     file_md[FD].curr_block = file_md[FD].start_block;
     int cur_block = file_md[FD].start_block;
 
-    for (int i = 0; i < total_blocks; i++) {
+    int i;
+    for (i = 0; i < total_blocks; i++) {
         if (cur_block == -1) {
             cur_block = find_free_block();
             if (cur_block == -1) {
@@ -310,7 +314,8 @@ int tfs_deleteFile(fileDescriptor FD) {
         curr_block = next_block;
     }
 
-    for (int i = FD; i < num_fd - 1; i++) {
+    int i;
+    for (i = FD; i < num_fd - 1; i++) {
         file_md[i] = file_md[i + 1];
     }
     num_fd--;
@@ -376,7 +381,8 @@ int tfs_seek(fileDescriptor FD, int offset) {
     file_md[FD].curr_offset = offset;
     int block_num = file_md[FD].start_block;
 
-    for (int i = 0; i < offset / (BLOCKSIZE - 4); i++) {
+    int i;
+    for (i = 0; i < offset / (BLOCKSIZE - 4); i++) {
         char block[BLOCKSIZE];
         if (readBlock(mounted_disk, block_num, block) < 0) {
             return TFS_READ_ERROR;
@@ -419,7 +425,8 @@ int tfs_readdir() {
     }
 
     printf("Files in TinyFS:\n");
-    for (int i = 0; i < num_fd; i++) {
+    int i;
+    for (i = 0; i < num_fd; i++) {
         printf("%s\n", file_md[i].name);
     }
 
@@ -431,7 +438,8 @@ int tfs_readdir() {
  tfs_deleteFile() functions that try to use it fail.
 */
 int tfs_makeRO(char *name) {
-    for (int i = 0; i < num_fd; i++) {
+    int i;
+    for (i = 0; i < num_fd; i++) {
         if (strcmp(file_md[i].name, name) == 0) {
             file_md[i].read_only = 1;
             return TFS_SUCCESS;
@@ -445,7 +453,8 @@ int tfs_makeRO(char *name) {
  makes the file read-write
 */
 int tfs_makeRW(char *name) {
-    for (int i = 0; i < num_fd; i++) {
+    int i;
+    for (i = 0; i < num_fd; i++) {
         if (strcmp(file_md[i].name, name) == 0) {
             file_md[i].read_only = 0;
             return TFS_SUCCESS;
