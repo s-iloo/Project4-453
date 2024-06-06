@@ -114,7 +114,7 @@ int main() {
     }
 
     printf("Making file \"bruhfile\" read-only...\n");
-    if (tfs_makeRO("new_iamfile") != TFS_SUCCESS) {
+    if (tfs_makeRO("bruhfile") != TFS_SUCCESS) {
         printf("Failed to make \"bruhfile\" read-only\n");
         return -1;
     }
