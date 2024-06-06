@@ -493,12 +493,13 @@ int tfs_writeByte(fileDescriptor FD, int offset, unsigned int data) {
     if (FD < 0 || FD >= num_fd) {
         return TFS_FILE_NOT_OPEN;
     }
+
+    if (file_md[FD].read_only) {
+        return TFS_FILE_READ_ONLY;
+    }
+
     printf("file curr offset: %d\n", file_md[FD].curr_offset);
     printf("file size: %d\n", file_md[FD].size);
-    /*if (file_md[FD].curr_offset >= file_md[FD].size) {
-        printf("right here!\n");
-        return TFS_EOF;
-    }*/
     // get the start block of the file
     int block_num = file_md[FD].start_block;
     printf("block_num is: %d\n", block_num);
@@ -519,8 +520,6 @@ int tfs_writeByte(fileDescriptor FD, int offset, unsigned int data) {
     printf("adding data to block: %c\n", (char) data);
     printf("offset mod blocksize is %d\n", (offset % BLOCKSIZE)); 
     block[offset % BLOCKSIZE + 4] = (char) data;
-    //char data_byte = data;
-    //memcpy(block + offset, data_byte, 1);
     printf("data block after write: %s\n", block + 4);
 
     printf("writing block back to disk\n");
