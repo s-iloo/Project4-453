@@ -6,17 +6,22 @@
 #define DEFAULT_DISK_NAME "tinyFSDisk"
 
 #include "libDisk.h"
-//#include "tinyFSErrors.h"
+#include "TinyFS_errno.h"
+#include <stdlib.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 typedef struct {
     char name[9];
     int size;
     int start_block;
-    int current_block;
-    int current_offset;
-} fileDescriptor;
+    int curr_block;
+    int curr_offset;
+    int read_only;
+} fileMetadata;
+
+typedef int fileDescriptor;
 
 /* Standard function declarations */
 
@@ -29,20 +34,6 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size);
 int tfs_deleteFile(fileDescriptor FD);
 int tfs_readByte(fileDescriptor FD, char *buffer);
 int tfs_seek(fileDescriptor FD, int offset);
-
-/*
-Each below group of api methods worth 10 percent
-on top of 80 percent from impl base project.
-Need to do 2 of these to get full credit.
-Can do all 4 to get up to 120% on project.
-
-Start with the easier ones (obviously after implementing all the above).
-They are in no p[articular order but picked the 4 that seemed most feasible
-from reading instructions. Can swap them as well if one or multiple
-end up being really hard or not straightforward.
-
-Would prefer 2 very solid implementations over 4 mediocre ones.
-*/
 
 /* Implement file system consistency checks */
 int tfs_checkConsistency();
@@ -60,3 +51,4 @@ int tfs_writeByte(fileDescriptor FD, int offset, unsigned int data);
 int tfs_readFileInfo(fileDescriptor FD);
 
 #endif
+

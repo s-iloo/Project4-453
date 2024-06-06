@@ -1,7 +1,4 @@
 #include "libDisk.h"
-#include "TinyFSErrors.h"
-#include <unistd.h>
-#include <fcntl.h>
 
 /*
 This functions opens a regular UNIX file and designates the first
@@ -66,12 +63,12 @@ opened) or any other failures. You must define your own error code
 system.
 */
 int readBlock(int disk, int bNum, void *block) {
-    
-    // NOTE: Assuming block is the local buffer?
-    // TODO condition always true? Above must be off
-    if (malloc_usable_size(block) < BLOCKSIZE) {
-        return TFS_ERROR;
-    }
+
+//    // NOTE: Assuming block is the local buffer?
+//    if (malloc_usable_size(block) < BLOCKSIZE) {
+//        return TFS_ERROR;
+//    }
+
     if (disk < 0) {
         return TFS_FILE_NOT_OPEN;
     }
@@ -101,10 +98,9 @@ is not available (i.e. hasn’t been opened) or any other failures. You
 must define your own error code system.
 */
 int writeBlock(int disk, int bNum, void *block) {
-    // TODO condition always true?
-    if (malloc_usable_size(block) < BLOCKSIZE) {
-        return TFS_ERROR;
-    }
+//    if (malloc_usable_size(block) < BLOCKSIZE) {
+//        return TFS_ERROR;
+//    }
 
     if (disk < 0) {
         return TFS_FILE_NOT_OPEN;

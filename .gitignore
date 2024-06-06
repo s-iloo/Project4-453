@@ -40,3 +40,9 @@ CTestTestfile.cmake
 *.temp
 *.bak
 *~
+
+# Custom ignores
+tinyFSDemo
+tinyFSDisk
+tfsTest
+*.dsk
