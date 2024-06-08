@@ -42,15 +42,15 @@ int main() {
         sillyfileContent[i] = phrase2[i % strlen(phrase2)];
     }
     sillyfileContent[sillyfileSize - 1] = '\0';
-
-    printf("Opening or creating file \"iamfile\"...\n");
+    printf("\n");
+    printf("Opening or creating file \"iamfile\"...\n\n");
     aFD = tfs_openFile("iamfile");
     if (aFD < 0) {
         printf("Failed to open file \"iamfile\"\n");
         return -1;
     }
 
-    printf("Writing to file \"iamfile\"...\n");
+    printf("Writing to file \"iamfile\"...\n\n");
     if (tfs_writeFile(aFD, iamfileContent, iamfileSize) != TFS_SUCCESS) {
         printf("Failed to write to file \"iamfile\"\n");
         return -1;
@@ -71,22 +71,22 @@ int main() {
             printf("%c", readBuffer);
         }
     }
-    printf("\n");
+    printf("\n\n");
 
-    printf("Closing file \"iamfile\"...\n");
+    printf("Closing file \"iamfile\"...\n\n");
     if (tfs_closeFile(aFD) != TFS_SUCCESS) {
         printf("Failed to close file \"iamfile\"\n");
         return -1;
     }
 
-    printf("Opening or creating file \"sillyfile\"...\n");
+    printf("Opening or creating file \"sillyfile\"...\n\n");
     bFD = tfs_openFile("sillyfile");
     if (bFD < 0) {
         printf("Failed to open file \"sillyfile\"\n");
         return -1;
     }
 
-    printf("Writing to file \"sillyfile\"...\n");
+    printf("Writing to file \"sillyfile\"...\n\n");
     if (tfs_writeFile(bFD, sillyfileContent, sillyfileSize) != TFS_SUCCESS) {
         printf("Failed to write to file \"sillyfile\"\n");
         return -1;
@@ -106,9 +106,9 @@ int main() {
             printf("%c", readBuffer);
         }
     }
-    printf("\n");
+    printf("\n\n");
 
-    printf("Renaming file \"sillyfile\" to \"bruhfile\"...\n");
+    printf("Renaming file \"sillyfile\" to \"bruhfile\"...\n\n");
     if (tfs_rename(bFD, "bruhfile") != TFS_SUCCESS) {
         printf("Failed to rename \"sillyfile\"\n");
         return -1;
@@ -119,14 +119,14 @@ int main() {
         printf("Failed to list files\n");
         return -1;
     }
-
+    printf("\n");
     printf("Reading file info for \"bruhfile\" before writing byte...\n");
     if (tfs_readFileInfo(bFD) != TFS_SUCCESS) {
         printf("Failed to read file info for \"bruhfile\"\n");
         return -1;
     }
-
-    printf("Making file \"bruhfile\" read-only...\n");
+    printf("\n");
+    printf("Making file \"bruhfile\" read-only...\n\n");
     if (tfs_makeRO("bruhfile") != TFS_SUCCESS) {
         printf("Failed to make \"bruhfile\" read-only\n");
         return -1;
@@ -137,7 +137,7 @@ int main() {
         printf("Unexpectedly succeeded in writing to read-only file \"bruhfile\"\n");
         return -1;
     } else {
-        printf("Correctly failed to write to read-only file \"bruhfile\"\n");
+        printf("Correctly failed to write to read-only file \"bruhfile\"\n\n");
     }
 
     printf("Making file \"bruhfile\" read-write...\n");
@@ -151,7 +151,7 @@ int main() {
         printf("Unexpectedly failed to write to read-write file \"bruhfile\"\n");
         return -1;
     } else {
-        printf("Correctly wrote to read-write file \"bruhfile\"\n");
+        printf("Correctly wrote to read-write file \"bruhfile\"\n\n");
     }
 
     printf("Writing 'X' to 500th byte of \"bruhfile\"...\n");
@@ -170,21 +170,21 @@ int main() {
         printf("Failed to read 500th byte of \"bruhfile\"\n");
         return -1;
     }
-    printf("500th byte of \"bruhfile\": '%c'\n", readBuffer);
+    printf("500th byte of \"bruhfile\": '%c'\n\n", readBuffer);
 
-    printf("Closing file \"bruhfile\"...\n");
+    printf("Closing file \"bruhfile\"...\n\n");
     if (tfs_closeFile(bFD) != TFS_SUCCESS) {
         printf("Failed to close file \"bruhfile\"\n");
         return -1;
     }
 
-    printf("Opening or creating file \"lastFile\"...\n");
+    printf("Opening or creating file \"lastFile\"...\n\n");
     cFD = tfs_openFile("lastFile");
     if (cFD < 0) {
         printf("Failed to open file \"lastFile\"\n");
         return -1;
     }
-    printf("Writing to file \"lastFile\"...\n");
+    printf("Writing to file \"lastFile\"...\n\n");
     if (tfs_writeFile(cFD, phrase1, sizeof(phrase1)) != TFS_SUCCESS) {
         printf("Failed to write to file \"lastFile\"...\n");
         return -1;
@@ -199,8 +199,7 @@ int main() {
         printf("%c", readBuffer);
     }
     printf("\n");
-
-    printf("Writing \"A\" to 3rd byte of \"lastFile\"...\n");
+    printf("Writing \"A\" to 3rd byte of \"lastFile\"...\n\n");
     if (tfs_writeByte(cFD, 3, 'A') != TFS_SUCCESS) {
         printf("Failed to write \"A\" to 3rd byte of \"lastFile\"\n");
         return -1;
@@ -214,9 +213,9 @@ int main() {
     while (tfs_readByte(cFD, &readBuffer) == TFS_SUCCESS) {
         printf("%c", readBuffer);
     }
-    printf("\n");
+    printf("\n\n");
 
-    printf("Closing file \"lastFile\"...\n");
+    printf("Closing file \"lastFile\"...\n\n");
     if (tfs_closeFile(cFD) != TFS_SUCCESS) {
         printf("Failed to close file \"lastFile\"\n");
         return -1;
