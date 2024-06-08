@@ -337,8 +337,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
     }
 
     int block_num = file_md[FD].curr_block;
-    int offset_within_block = file_md[FD].curr_offset % (BLOCKSIZE - 4); // Data offset within the block
-    int block_data_offset = offset_within_block + 4; // +4 to skip header
+    int offset = file_md[FD].curr_offset % (BLOCKSIZE - 4) + 4; // Data offset within the block +4 to skip header
 
 
     char block[BLOCKSIZE];
@@ -346,7 +345,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
         return TFS_READ_ERROR;
     }
 
-    *buffer = block[block_data_offset];
+    *buffer = block[offset];
 
     file_md[FD].curr_offset++;
 

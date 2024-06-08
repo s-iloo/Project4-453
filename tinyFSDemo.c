@@ -57,20 +57,16 @@ int main() {
     }
 
     printf("Reading from file \"iamfile\"...\n");
-    if (tfs_seek(aFD, 4) != TFS_SUCCESS) {
+    if (tfs_seek(aFD, 0) != TFS_SUCCESS) {
         printf("Failed to seek to the beginning of \"iamfile\"\n");
         return -1;
     }
 
-    for(i = 0; i < iamfileSize + 4; i++) {
-        if (i % (BLOCKSIZE) == 0) {
-            tfs_seek(aFD, i);
-            i = i + 3;
-        } else {
-            tfs_readByte(aFD, &readBuffer);
-            printf("%c", readBuffer);
-        }
+    for(i = 0; i < sillyfileSize + 4; i++) {
+        tfs_readByte(aFD, &readBuffer);
+        printf("%c", readBuffer);
     }
+    printf("\n\n");
     printf("\n\n");
 
     printf("Closing file \"iamfile\"...\n\n");
