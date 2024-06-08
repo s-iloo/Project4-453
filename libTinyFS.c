@@ -246,7 +246,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
                 if (readBlock(mounted_disk, previous_block, prev_block_data) < 0) {
                     return TFS_READ_ERROR;
                 }
-                *((int *)(prev_block_data + 2)) = cur_block;
+                *((unsigned int *)(prev_block_data + 2)) = cur_block;
                 if (writeBlock(mounted_disk, previous_block, prev_block_data) < 0) {
                     return TFS_WRITE_ERROR;
                 }
@@ -260,7 +260,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
         block[1] = 0x44; // Magic number
         int bytes_to_write = (remaining_size > (BLOCKSIZE - 4)) ? (BLOCKSIZE - 4) : remaining_size;
         memcpy(block + 4, current_buffer, bytes_to_write);
-
+        printf("block holds: %s\n", block + 4);
         if (writeBlock(mounted_disk, cur_block, block) < 0) {
             return TFS_WRITE_ERROR;
         }
