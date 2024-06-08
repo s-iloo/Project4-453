@@ -379,8 +379,8 @@ int tfs_seek(fileDescriptor FD, int offset) {
 
     file_md[FD].curr_offset = offset;
     int block_num = file_md[FD].start_block;
-
-    for (int i = 0; i < offset / (BLOCKSIZE - 4); i++) {
+    int i; 
+    for (i = 0; i < offset / (BLOCKSIZE - 4); i++) {
         char block[BLOCKSIZE];
         if (readBlock(mounted_disk, block_num, block) < 0) {
             return TFS_READ_ERROR;
@@ -570,9 +570,9 @@ int tfs_writeByte(fileDescriptor FD, int offset, unsigned int data) {
 
 
     int current_block = file_md[FD].start_block;
-
+    int i; 
     // Traverse to the correct block
-    for (int i = 0; i < block_index; i++) {
+    for (i = 0; i < block_index; i++) {
         char block[BLOCKSIZE];
         if (readBlock(mounted_disk, current_block, block) < 0) {
             return TFS_READ_ERROR;
