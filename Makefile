@@ -4,7 +4,7 @@ CFLAGS = -Wall -g
 all: tinyFSDemo
 
 tinyFSDemo: libDisk.o libTinyFS.o tinyFSDemo.o
-	$(CC) $(CFLAGS) -o tinyFSDemo libDisk.o libTinyFS.o tinyFSDemo.o
+	$(CC) $(CFLAGS) -o tinyFSDemo libDisk.o libTinyFS.o tinyFSDemo.o -lm
 
 libDisk.o: libDisk.c libDisk.h
 	$(CC) $(CFLAGS) -c libDisk.c

@@ -99,15 +99,18 @@ int main() {
     // If you look at the output we basically print D which is the magic number everytime
     // we hit a new block. Good news is that we're no longer overwriting data. This for loop
     // is also probably off as it doesn't print the entire file, (cuts off the last block).
-    for(i = 3; i < sillyfileSize + 4; i++) {
+    for(i = 4; i < sillyfileSize + 16; i++) {
         if (i % (BLOCKSIZE) == 0) {
-            printf("new block");
-            printf(" i is: %d\n", i);
-            //i = i + 4;
-            //tfs_seek(bFD, i+3);
+            //printf("new block");
+            //printf(" i is: %d\n", i);
+            //i = i + 2;
+            tfs_seek(bFD, i+4);
+            i = i + 3;
+        }else {
+            //printf("right before read byte i is: %d\n", i);
+            tfs_readByte(bFD, &readBuffer);
+            printf("%c", readBuffer);
         }
-        tfs_readByte(bFD, &readBuffer);
-        printf("%c", readBuffer);
     }
     printf("\n");
 
@@ -198,6 +201,12 @@ int main() {
     }
     printf("\n");
     
+    
+    printf("Closing file \"chillfile\"...\n");
+    if (tfs_closeFile(cFD) != TFS_SUCCESS) {
+        printf("Failed to close file \"chillfile\"\n");
+        return -1;
+    }
 
     printf("Unmounting the file system...\n");
     if (tfs_unmount() != TFS_SUCCESS) {
