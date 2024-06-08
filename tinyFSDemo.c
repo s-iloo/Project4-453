@@ -62,7 +62,7 @@ int main() {
         return -1;
     }
 
-    for(i = 0; i < iamfileSize + 16; i++) {
+    for(i = 0; i < iamfileSize + 4; i++) {
         if (i % (BLOCKSIZE) == 0) {
             tfs_seek(aFD, i);
             i = i + 3;
@@ -97,7 +97,7 @@ int main() {
         printf("Failed to seek to the beginning of \"sillyfile\"\n");
         return -1;
     }
-    for(i = 0; i < sillyfileSize + 16; i++) {
+    for(i = 0; i < sillyfileSize + 4; i++) {
         if (i % (BLOCKSIZE) == 0) {
             tfs_seek(bFD, i);
             i = i + 3;
