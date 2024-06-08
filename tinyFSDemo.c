@@ -91,12 +91,22 @@ int main() {
         printf("Failed to seek to the beginning of \"sillyfile\"\n");
         return -1;
     }
-    // NOTE: something is potentially wrong with silly file 
-    // possibly could be in write file
-    // checkout the output for reading sillyfile and you'll 
-    // see that there's random letters sometimes and it cuts off in the
-    // beginning
-    while (tfs_readByte(bFD, &readBuffer) == TFS_SUCCESS) {
+    // NOTE: this is still bugging out
+    // My idea was to find when we are switching to the new block so that
+    // we can skip the first four bytes by seeking past them so as to not print
+    // out the block metadata and only the file extent content
+    // shit don't work though, everytime I try seeking it just doesn't print anything
+    // If you look at the output we basically print D which is the magic number everytime
+    // we hit a new block. Good news is that we're no longer overwriting data. This for loop
+    // is also probably off as it doesn't print the entire file, (cuts off the last block).
+    for(i = 3; i < sillyfileSize + 4; i++) {
+        if (i % (BLOCKSIZE) == 0) {
+            printf("new block");
+            printf(" i is: %d\n", i);
+            //i = i + 4;
+            //tfs_seek(bFD, i+3);
+        }
+        tfs_readByte(bFD, &readBuffer);
         printf("%c", readBuffer);
     }
     printf("\n");

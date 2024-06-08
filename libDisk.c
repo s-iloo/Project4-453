@@ -67,7 +67,7 @@ int readBlock(int disk, int bNum, void *block) {
     if (bNum < 0) {
         return TFS_INVALID_BLOCK;
     }
-
+    lseek(disk, 0, SEEK_SET);
     if (lseek(disk, bNum * BLOCKSIZE, SEEK_SET) == -1) {
         return TFS_INVALID_SEEK;
     }
@@ -75,6 +75,7 @@ int readBlock(int disk, int bNum, void *block) {
     if (read(disk, block, BLOCKSIZE) != BLOCKSIZE) {
         return TFS_READ_ERROR;
     }
+    //printf("in read block, block contains: %s\n", block+4);
     return TFS_SUCCESS;
 }
 
@@ -95,7 +96,7 @@ int writeBlock(int disk, int bNum, void *block) {
     if (bNum < 0) {
         return TFS_INVALID_BLOCK;
     }
-
+    lseek(disk, 0, SEEK_SET);
     if (lseek(disk, bNum * BLOCKSIZE, SEEK_SET) == -1) {
         return TFS_INVALID_SEEK;
     }

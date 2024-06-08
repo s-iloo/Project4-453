@@ -220,7 +220,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
     int total_blocks = (size + BLOCKSIZE - 5) / (BLOCKSIZE - 4);
     int remaining_size = size;
     char *current_buffer = buffer;
-
+    int j; //IAN
     int previous_block = -1;
 
     file_md[FD].size = size;
@@ -246,7 +246,10 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
                 if (readBlock(mounted_disk, previous_block, prev_block_data) < 0) {
                     return TFS_READ_ERROR;
                 }
-                *((unsigned int *)(prev_block_data + 2)) = cur_block;
+                //*((unsigned int *)(prev_block_data + 2)) = (unsigned int)cur_block;
+                prev_block_data[2] = (unsigned int) cur_block;
+                printf("prev_block_data byte 2 is: %d\n", prev_block_data[2]);
+                printf("prev_block_data is block %d:\n", previous_block);
                 if (writeBlock(mounted_disk, previous_block, prev_block_data) < 0) {
                     return TFS_WRITE_ERROR;
                 }
@@ -259,8 +262,8 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
         block[0] = 3; // Data block type
         block[1] = 0x44; // Magic number
         int bytes_to_write = (remaining_size > (BLOCKSIZE - 4)) ? (BLOCKSIZE - 4) : remaining_size;
-        memcpy(block + 4, current_buffer, bytes_to_write);
-        printf("block holds: %s\n", block + 4);
+        strncpy(block + 4, current_buffer, bytes_to_write);
+        printf("writing this block to disk: %s\n", block + 4);
         if (writeBlock(mounted_disk, cur_block, block) < 0) {
             return TFS_WRITE_ERROR;
         }
@@ -338,7 +341,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
         return TFS_FILE_NOT_OPEN;
     }
 
-    if (file_md[FD].curr_offset > file_md[FD].size) {
+    if (file_md[FD].curr_offset > file_md[FD].size+4) {
         return TFS_EOF;
     }
 
@@ -353,8 +356,11 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
     *buffer = block[offset];
     file_md[FD].curr_offset++;
 
-    if (file_md[FD].curr_offset % BLOCKSIZE == 0 && file_md[FD].curr_offset < file_md[FD].size) {
-        file_md[FD].curr_block = *((int*)(block + 2));
+    if (file_md[FD].curr_offset % BLOCKSIZE-1 == 0 && file_md[FD].curr_offset < file_md[FD].size + 4) {
+        //file_md[FD].curr_block = *((unsigned int*)(block + 2));
+        file_md[FD].curr_block = (unsigned int)block[2];
+        printf("NEW BLOCK\n");
+        printf("--------------curr block is: %d\n", block[2]);
     }
 
     return TFS_SUCCESS;
