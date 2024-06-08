@@ -93,18 +93,13 @@ int main() {
     }
 
     printf("Reading from file \"sillyfile\"...\n");
-    if (tfs_seek(bFD, 4) != TFS_SUCCESS) {
+    if (tfs_seek(bFD, 0) != TFS_SUCCESS) {
         printf("Failed to seek to the beginning of \"sillyfile\"\n");
         return -1;
     }
     for(i = 0; i < sillyfileSize + 4; i++) {
-        if (i % (BLOCKSIZE) == 0) {
-            tfs_seek(bFD, i);
-            i = i + 3;
-        } else {
-            tfs_readByte(bFD, &readBuffer);
-            printf("%c", readBuffer);
-        }
+        tfs_readByte(bFD, &readBuffer);
+        printf("%c", readBuffer);
     }
     printf("\n\n");
 
