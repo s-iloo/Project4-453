@@ -37,7 +37,7 @@ int main() {
     }
     iamfileContent[iamfileSize - 1] = '\0';
 
-    
+
     for (i = 0; i < sillyfileSize; i++) {
         sillyfileContent[i] = phrase2[i % strlen(phrase2)];
     }
@@ -62,8 +62,14 @@ int main() {
         return -1;
     }
 
-    while (tfs_readByte(aFD, &readBuffer) == TFS_SUCCESS) {
-        printf("%c", readBuffer);
+    for(i = 0; i < iamfileSize + 16; i++) {
+        if (i % (BLOCKSIZE) == 0) {
+            tfs_seek(aFD, i);
+            i = i + 3;
+        } else {
+            tfs_readByte(aFD, &readBuffer);
+            printf("%c", readBuffer);
+        }
     }
     printf("\n");
 
@@ -91,23 +97,11 @@ int main() {
         printf("Failed to seek to the beginning of \"sillyfile\"\n");
         return -1;
     }
-    // NOTE: this is still bugging out
-    // My idea was to find when we are switching to the new block so that
-    // we can skip the first four bytes by seeking past them so as to not print
-    // out the block metadata and only the file extent content
-    // shit don't work though, everytime I try seeking it just doesn't print anything
-    // If you look at the output we basically print D which is the magic number everytime
-    // we hit a new block. Good news is that we're no longer overwriting data. This for loop
-    // is also probably off as it doesn't print the entire file, (cuts off the last block).
-    for(i = 4; i < sillyfileSize + 16; i++) {
+    for(i = 0; i < sillyfileSize + 16; i++) {
         if (i % (BLOCKSIZE) == 0) {
-            //printf("new block");
-            //printf(" i is: %d\n", i);
-            //i = i + 2;
-            tfs_seek(bFD, i+4);
+            tfs_seek(bFD, i);
             i = i + 3;
-        }else {
-            //printf("right before read byte i is: %d\n", i);
+        } else {
             tfs_readByte(bFD, &readBuffer);
             printf("%c", readBuffer);
         }
@@ -115,15 +109,20 @@ int main() {
     printf("\n");
 
     printf("Renaming file \"sillyfile\" to \"bruhfile\"...\n");
-    if (tfs_rename(aFD, "bruhfile") != TFS_SUCCESS) {
-        printf("Failed to rename \"iamfile\"\n");
+    if (tfs_rename(bFD, "bruhfile") != TFS_SUCCESS) {
+        printf("Failed to rename \"sillyfile\"\n");
         return -1;
     }
-
 
     printf("Listing files in the file system (should now have bruhfile)...\n");
     if (tfs_readdir() != TFS_SUCCESS) {
         printf("Failed to list files\n");
+        return -1;
+    }
+
+    printf("Reading file info for \"bruhfile\" before writing byte...\n");
+    if (tfs_readFileInfo(bFD) != TFS_SUCCESS) {
+        printf("Failed to read file info for \"bruhfile\"\n");
         return -1;
     }
 
@@ -134,7 +133,7 @@ int main() {
     }
 
     printf("Attempting to write to read-only file \"bruhfile\" (should fail)...\n");
-    if (tfs_writeFile(aFD, iamfileContent, iamfileSize) != TFS_FILE_READ_ONLY) {
+    if (tfs_writeFile(bFD, sillyfileContent, sillyfileSize) != TFS_FILE_READ_ONLY) {
         printf("Unexpectedly succeeded in writing to read-only file \"bruhfile\"\n");
         return -1;
     } else {
@@ -148,34 +147,52 @@ int main() {
     }
 
     printf("Attempting to write to read-write file \"bruhfile\" (should work)...\n");
-    if (tfs_writeFile(aFD, iamfileContent, iamfileSize) != TFS_SUCCESS) {
+    if (tfs_writeFile(bFD, sillyfileContent, sillyfileSize) != TFS_SUCCESS) {
         printf("Unexpectedly failed to write to read-write file \"bruhfile\"\n");
         return -1;
     } else {
         printf("Correctly wrote to read-write file \"bruhfile\"\n");
     }
 
+    printf("Writing 'X' to 500th byte of \"bruhfile\"...\n");
+    if (tfs_writeByte(bFD, 500, 'X') != TFS_SUCCESS) {
+        printf("Failed to write 'X' to 500th byte of \"bruhfile\"\n");
+        return -1;
+    }
+
+    // Verify the byte was written correctly
+    printf("Verifying 500th byte of \"bruhfile\"...\n");
+    if (tfs_seek(bFD, 500) != TFS_SUCCESS) {
+        printf("Failed to seek to 500th byte of \"bruhfile\"\n");
+        return -1;
+    }
+    if (tfs_readByte(bFD, &readBuffer) != TFS_SUCCESS) {
+        printf("Failed to read 500th byte of \"bruhfile\"\n");
+        return -1;
+    }
+    printf("500th byte of \"bruhfile\": '%c'\n", readBuffer);
+
     printf("Closing file \"bruhfile\"...\n");
     if (tfs_closeFile(bFD) != TFS_SUCCESS) {
-        printf("Failed to close file \"sillyfile\"\n");
+        printf("Failed to close file \"bruhfile\"\n");
         return -1;
     }
-    
-    printf("Opening or creating file \"chillfile\"...\n");
-    cFD = tfs_openFile("chillfile");
+
+    printf("Opening or creating file \"lastFile\"...\n");
+    cFD = tfs_openFile("lastFile");
     if (cFD < 0) {
-        printf("Failed to open file \"chillfile\"...\n");
+        printf("Failed to open file \"lastFile\"\n");
         return -1;
     }
-    printf("Writing to file \"chillfile\"...\n"); 
+    printf("Writing to file \"lastFile\"...\n");
     if (tfs_writeFile(cFD, phrase1, sizeof(phrase1)) != TFS_SUCCESS) {
-        printf("Failed to write to file \"chillfile\"...\n");       
+        printf("Failed to write to file \"lastFile\"...\n");
         return -1;
     }
 
-    printf("File \"chillfile\" now contains...\n");
-    if (tfs_seek(cFD, 4) != TFS_SUCCESS) {
-        printf("Failed to seek to the beginning of \"chillfile\"\n");
+    printf("File \"lastFile\" now contains...\n");
+    if (tfs_seek(cFD, 0) != TFS_SUCCESS) {
+        printf("Failed to seek to the beginning of \"lastFile\"\n");
         return -1;
     }
     while (tfs_readByte(cFD, &readBuffer) == TFS_SUCCESS) {
@@ -183,28 +200,31 @@ int main() {
     }
     printf("\n");
 
-    printf("Writing \"A\" to 3rd byte of \"chillfile\"...\n");
-    // 0x41 corresponds to letter A
-    unsigned int data = 0x41; 
-    if (tfs_writeByte(cFD, 3, data) != TFS_SUCCESS) {
-        printf("Failed to write \"A\" to 3rd byte of chillfile...\n");
+    printf("Writing \"A\" to 3rd byte of \"lastFile\"...\n");
+    if (tfs_writeByte(cFD, 3, 'A') != TFS_SUCCESS) {
+        printf("Failed to write \"A\" to 3rd byte of \"lastFile\"\n");
         return -1;
     }
 
-    printf("File \"chillfile\" now contains...\n");
-    if (tfs_seek(cFD, 4) != TFS_SUCCESS) {
-        printf("Failed to seek to the beginning of \"chillfile\"\n");
+    printf("File \"lastFile\" now contains...\n");
+    if (tfs_seek(cFD, 0) != TFS_SUCCESS) {
+        printf("Failed to seek to the beginning of \"lastFile\"\n");
         return -1;
     }
     while (tfs_readByte(cFD, &readBuffer) == TFS_SUCCESS) {
         printf("%c", readBuffer);
     }
     printf("\n");
-    
-    
-    printf("Closing file \"chillfile\"...\n");
+
+    printf("Closing file \"lastFile\"...\n");
     if (tfs_closeFile(cFD) != TFS_SUCCESS) {
-        printf("Failed to close file \"chillfile\"\n");
+        printf("Failed to close file \"lastFile\"\n");
+        return -1;
+    }
+
+    printf("Checking file system consistency...\n");
+    if (tfs_checkConsistency() != TFS_SUCCESS) {
+        printf("File system consistency check failed\n");
         return -1;
     }
 
@@ -214,11 +234,9 @@ int main() {
         return -1;
     }
 
-
     free(iamfileContent);
     free(sillyfileContent);
 
     printf("TinyFS demo completed successfully!\n");
     return 0;
 }
-

@@ -7,10 +7,12 @@
 
 #include "libDisk.h"
 #include "TinyFS_errno.h"
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 typedef struct {
     char name[9];
@@ -19,6 +21,7 @@ typedef struct {
     int curr_block;
     int curr_offset;
     int read_only;
+    time_t creation_t;
 } fileMetadata;
 
 typedef int fileDescriptor;

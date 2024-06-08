@@ -1,5 +1,4 @@
 #include "libTinyFS.h"
-#include <math.h>
 
 static fileMetadata *file_md = NULL;
 static int num_fd = 0;
@@ -42,7 +41,6 @@ int tfs_mkfs(char *filename, int nBytes) {
         if (writeBlock(disk, i, block) < 0) {
             return TFS_WRITE_ERROR;
         }
-        printf("init free block %d points to: %d\n", i, block[2]);
     }
 
     closeDisk(disk);
@@ -125,6 +123,7 @@ fileDescriptor tfs_openFile(char *name) {
     new_meta->curr_block = -1;
     new_meta->curr_offset = 0;
     new_meta->read_only = 0;
+    new_meta->creation_t = time(NULL);
 
     num_fd++;
     return num_fd - 1;
@@ -174,8 +173,6 @@ int find_free_block() {
         return TFS_DISK_FULL; // No free blocks available
     }
 
-    printf("free block is %d\n", free_block);
-
     char free_block_data[BLOCKSIZE];
     if (readBlock(mounted_disk, free_block, free_block_data) < 0) {
         return TFS_READ_ERROR;
@@ -186,8 +183,6 @@ int find_free_block() {
     if (writeBlock(mounted_disk, 0, super_block) < 0) {
         return TFS_WRITE_ERROR;
     }
-
-    printf("updated superblock to block %d\n", super_block[2]);
 
     // Mark the allocated block as used
     free_block_data[0] = 3; // Data block type
@@ -251,7 +246,6 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
                 if (writeBlock(mounted_disk, previous_block, prev_block_data) < 0) {
                     return TFS_WRITE_ERROR;
                 }
-                printf("linked block %d to new block %d\n", previous_block, cur_block);
             }
         }
 
@@ -261,11 +255,10 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
         block[1] = 0x44; // Magic number
         int bytes_to_write = (remaining_size > (BLOCKSIZE - 4)) ? (BLOCKSIZE - 4) : remaining_size;
         strncpy(block + 4, current_buffer, bytes_to_write);
-        // printf("writing this block to disk: %s\n", block + 4);
+
         if (writeBlock(mounted_disk, cur_block, block) < 0) {
             return TFS_WRITE_ERROR;
         }
-        printf("wrote %d bytes to block no. %d\n", bytes_to_write, cur_block);
 
         current_buffer += bytes_to_write;
         remaining_size -= bytes_to_write;
@@ -339,28 +332,32 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
         return TFS_FILE_NOT_OPEN;
     }
 
-    //if (file_md[FD].curr_offset > (4*(file_md[FD].size/(BLOCKSIZE-4))) + file_md[FD].size + 2) {
-    int num_blocks = (int)ceil((double)file_md[FD].size / (double)(BLOCKSIZE - 4));
-    if (num_blocks * BLOCKSIZE < file_md[FD].curr_offset || file_md[FD].curr_offset > file_md[FD].size + (num_blocks * 4)) {    
+    if (file_md[FD].curr_offset >= file_md[FD].size) {
         return TFS_EOF;
     }
 
     int block_num = file_md[FD].curr_block;
-    int offset = file_md[FD].curr_offset % BLOCKSIZE;
+    int offset_within_block = file_md[FD].curr_offset % (BLOCKSIZE - 4); // Data offset within the block
+    int block_data_offset = offset_within_block + 4; // +4 to skip header
+
 
     char block[BLOCKSIZE];
     if (readBlock(mounted_disk, block_num, block) < 0) {
         return TFS_READ_ERROR;
     }
 
-    *buffer = block[offset];
+    *buffer = block[block_data_offset];
+
     file_md[FD].curr_offset++;
-    if (file_md[FD].curr_offset % BLOCKSIZE-1 == 0 && file_md[FD].curr_offset < file_md[FD].size + 4) {
+
+    // Move to next block if necessary
+    if (file_md[FD].curr_offset % (BLOCKSIZE - 4) == 0 && file_md[FD].curr_offset < file_md[FD].size) {
         file_md[FD].curr_block = (unsigned int)block[2];
     }
 
     return TFS_SUCCESS;
 }
+
 
 
 /*
@@ -383,34 +380,98 @@ int tfs_seek(fileDescriptor FD, int offset) {
     file_md[FD].curr_offset = offset;
     int block_num = file_md[FD].start_block;
 
-    int i;
-    for (i = 0; i < offset / (BLOCKSIZE - 4); i++) {
+    for (int i = 0; i < offset / (BLOCKSIZE - 4); i++) {
         char block[BLOCKSIZE];
         if (readBlock(mounted_disk, block_num, block) < 0) {
             return TFS_READ_ERROR;
         }
-        //block_num = *((int*)(block + 2));
-        block_num = (unsigned int) block[2];
+        block_num = (unsigned int)block[2]; // Move to the next block
     }
-    
-    file_md[FD].curr_block = (unsigned int)block_num;
+
+    file_md[FD].curr_block = block_num;
+
     return TFS_SUCCESS;
 }
 
 /* EXTRA FUNCTIONS. CHECK HEADER FILE FOR MORE INFO ON HOW WE SHOULD APPROACH THESE */
 
+/*
+Perform checks for file system consistency.
+
+General ideas for consistency checks:
+- Read the superblock and extract information about free blocks and inode pointers
+- Traverse the list of free blocks and ensure they are marked as free
+- traverse the list of inodes and ensure that allocated blocks are not marked as free
+- Check for block corruption (for example: invalid magic numbers, incorrect block types).
+
+Return TFS_SUCCESS if all checks pass, otherwise return an error code
+*/
 int tfs_checkConsistency() {
-    /*
-    Perform checks for file system consistency.
+    char block[BLOCKSIZE];
+    int free_block, next_free_block, i;
 
-    General ideas for consistency checks:
-    - Read the superblock and extract information about free blocks and inode pointers
-    - Traverse the list of free blocks and ensure they are marked as free
-    - traverse the list of inodes and ensure that allocated blocks are not marked as free
-    - Check for block corruption (for example: invalid magic numbers, incorrect block types).
+    if (mounted_disk == -1) {
+        return TFS_DISK_NOT_OPEN;
+    }
 
-    Return TFS_SUCCESS if all checks pass, otherwise return an error code
-    */
+    // Read and verify the superblock
+
+    if (readBlock(mounted_disk, 0, block) < 0) {
+        return TFS_ERROR;
+    }
+
+    if (block[0] != 1 || block[1] != 0x44) {
+        return TFS_INVALID_FILESYSTEM;
+    }
+
+    free_block = block[2];
+
+    // Traverse free block list
+    while (free_block != 0) {
+        if (readBlock(mounted_disk, free_block, block) < 0) {
+            return TFS_ERROR;
+        }
+
+        // Free blocks must have block type 4 and magic number
+        if (block[0] != 4 || block[1] != 0x44) {
+            return TFS_INVALID_FILESYSTEM;
+        }
+
+        next_free_block = block[2];
+        free_block = next_free_block;
+    }
+
+    // Check all blocks to verify no allocated block is marked as free
+    for (i = 0; i < num_fd; i++) {
+        int curr_block = file_md[i].start_block;
+
+        while (curr_block != -1) {
+            if (readBlock(mounted_disk, curr_block, block) < 0) {
+                return TFS_ERROR;
+            }
+
+            // Can't be free
+            if (block[0] != 4) {
+                return TFS_INVALID_FILESYSTEM;
+            }
+
+            curr_block = *((int *)(block + 2));
+        }
+    }
+
+    // Additional corruption checks valid magic numbers
+    int num_blocks = DEFAULT_DISK_SIZE / BLOCKSIZE;
+    for (i = 1; i < num_blocks; i++) {
+        if (readBlock(mounted_disk, i, block) < 0) {
+            return TFS_ERROR;
+        }
+
+        if (block[0] == 1 && block[1] != 0x44) {
+            return TFS_INVALID_FILESYSTEM;
+        }
+    }
+
+    return TFS_SUCCESS;
 }
 
  /*Renames a file. New name should be passed in. File has to be open*/
@@ -483,13 +544,10 @@ int tfs_makeRW(char *name) {
     return TFS_FILE_NOT_FOUND;
 }
 
-// NOTE: this is potentially still scuffed for files with more than one block
+/*
+ * Function that can write to one specific byte in file
+ */
 int tfs_writeByte(fileDescriptor FD, int offset, unsigned int data) {
-    /*
-    a function that can write one byte to an exact position inside the file.
-    */
-    int i; 
-    char block[BLOCKSIZE];
     if (mounted_disk == -1) {
         return TFS_DISK_NOT_OPEN;
     }
@@ -502,38 +560,70 @@ int tfs_writeByte(fileDescriptor FD, int offset, unsigned int data) {
         return TFS_FILE_READ_ONLY;
     }
 
-    //printf("file curr offset: %d\n", file_md[FD].curr_offset);
-    //printf("file size: %d\n", file_md[FD].size);
-    // get the start block of the file
-    int block_num = file_md[FD].start_block;
-    //printf("block_num is: %d\n", block_num);
-    readBlock(mounted_disk, block_num, block); 
-    for (i = file_md[FD].start_block + 1; i < offset / (BLOCKSIZE - 4); i++) {
-        //block[BLOCKSIZE] = {0};
-        printf("searching for the right block!\n");
-        if (readBlock(mounted_disk, block_num, block) < 0) {
-            return TFS_READ_ERROR;
-        }
-        block_num = *((int*)(block + 2));
+    if (offset < 0 || offset >= file_md[FD].size) {
+        return TFS_INVALID_SEEK;
     }
 
-    // at this point I should have the entire block and I just need to modify
-    // it to write the data at the exact offset
-    //printf("data block before write: %s\n", block + 4);
+    // Calculate which block to write to
+    int block_index = offset / (BLOCKSIZE - 4);
+    int byte_offset = offset % (BLOCKSIZE - 4) + 4; // +4 to skip header
 
-    //printf("adding data to block: %c\n", (char) data);
-    //printf("offset mod blocksize is %d\n", (offset % BLOCKSIZE)); 
-    block[offset % BLOCKSIZE + 4] = (char) data;
-    //printf("data block after write: %s\n", block + 4);
 
-    printf("writing block back to disk\n");
-    writeBlock(mounted_disk, block_num, block); 
-    return TFS_SUCCESS;    
+    int current_block = file_md[FD].start_block;
 
+    // Traverse to the correct block
+    for (int i = 0; i < block_index; i++) {
+        char block[BLOCKSIZE];
+        if (readBlock(mounted_disk, current_block, block) < 0) {
+            return TFS_READ_ERROR;
+        }
+        current_block = (unsigned int)block[2]; // Next block
+    }
+
+    // Read the block to modify
+    char block[BLOCKSIZE];
+    if (readBlock(mounted_disk, current_block, block) < 0) {
+        return TFS_READ_ERROR;
+    }
+
+    // Modify the byte
+    block[byte_offset] = (char)data;
+
+    // Write the modified block back to the disk
+    if (writeBlock(mounted_disk, current_block, block) < 0) {
+        return TFS_WRITE_ERROR;
+    }
+
+    // Confirm write by reading back
+    if (readBlock(mounted_disk, current_block, block) < 0) {
+        return TFS_READ_ERROR;
+    }
+
+    if (block[byte_offset] != (char)data) {
+        return TFS_WRITE_ERROR;
+    }
+
+    return TFS_SUCCESS;
 }
 
+/*
+ returns the file’s metadata
+*/
 int tfs_readFileInfo(fileDescriptor FD) {
-    /*
-    returns the file’s creation time or all info (can be implemented as multiple functions or just this one)
-    */
+    if (mounted_disk == -1) {
+        return TFS_DISK_NOT_OPEN;
+    }
+
+    if (FD < 0 || FD >= num_fd) {
+        return TFS_FILE_NOT_FOUND;
+    }
+
+    fileMetadata *meta = &file_md[FD];
+    printf("File name: %s\n", meta->name);
+    printf("File size: %d bytes\n", meta->size);
+    printf("File start block: %d\n", meta->start_block);
+    printf("File creation time: %s", ctime(&meta->creation_t));
+    printf("File read-only: %s\n", meta->read_only ? "Yes" : "No");
+
+    return TFS_SUCCESS;
 }
