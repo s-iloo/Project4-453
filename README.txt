@@ -17,11 +17,14 @@ Features & Functionality
         Directory Listing and File Renaming:
             tfs_rename: Renames a file. The file must be open to be renamed.
             tfs_readdir: Lists all files in the file system and prints them to stdout.
+        Timestamps:
+            tfs_readFileInfo: Prints metadata for specified file, some attributes being creation time, read only, size, etc.
+        Implement file system consistency checks:
+            tfs_checkConsistency: Verifies there are not inconsistencies in file system, such as block types being incorrect
 
         We are able to show this extended functionality in our TinyFSDemo.c program by creating a file, writing to the file, renaming the file 
         while it is open, and converting a file to read-only (and vice versa). We also call tfs_readdir at times in the demo to show a list of 
         files in the system. 
 
-Bugs & Limitations
-    TBD 
-    magic number being outputted in tfs_readByte
+We have completed to the best of our knowledge the basic functionality (80%) plus the additional functionality (4 * 10%),
+for a total of 120%.
